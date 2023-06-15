@@ -17,16 +17,12 @@ locals {
 
 }
 
-output "config" {
-  value = local.config
-}
-
 #proxy scanner config load
 #data "local_file" "config_yaml" {
 #  filename = "${path.module}/config.yaml"
 #}
 
-#iam roles
+#iam
 resource "aws_iam_role" "ecs_execution_role" {
   count                = var.use_existing_execution_role ? 0 : 1
   name                 = "${var.app_name}-task-execution-role"
@@ -147,25 +143,8 @@ data "aws_subnets" "vpc_subnets" {
   }
 }
 
-#data "aws_subnet" "vpc_subnet" {
-#  for_each = toset(data.aws_subnets.vpc_subnets.ids)
-#  id = each.value
-#}
-
 data "aws_availability_zones" "available" {
 }
-
-output "avzones" {
-  value = data.aws_availability_zones.available
-}
-
-#output "subnets" {
-#  value = data.aws_subnets.vpc_subnets
-#}
-
-#output "subnet" {
-#  value = [for subnet in data.aws_subnet.vpc_subnet : subnet.arn]
-#}
 
 #efs
 resource "aws_efs_file_system" "lacework-proxy-scanner-efs" {
