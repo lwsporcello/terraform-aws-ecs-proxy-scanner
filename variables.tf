@@ -47,7 +47,6 @@ variable "use_existing_vpc" {
 
 variable "vpc_id" {
   type = string
-  #default = "vpc-002ac2fb315c88fb3"
   default = ""
 }
 
