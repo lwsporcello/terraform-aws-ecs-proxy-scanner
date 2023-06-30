@@ -4,7 +4,7 @@ locals {
   execution_role_arn = var.use_existing_execution_role ? var.execution_role_arn : aws_iam_role.ecs_execution_role[0].arn
   task_role_arn      = var.use_existing_task_role ? var.task_role_arn : aws_iam_role.ecs_task_role[0].arn
   sources_cidr       = ["0.0.0.0/0"]
-  lb-certificate = var.use_existing_cert ? (var.use_existing_acm_cert ? var.certificate_arn : aws_acm_certificate.cert[0] ) : aws_acm_certificate.cert[0]
+  lb-certificate     = var.use_existing_cert ? (var.use_existing_acm_cert ? var.certificate_arn : aws_acm_certificate.cert[0]) : aws_acm_certificate.cert[0]
 
   #build a map of subnets in each az so we can use one for each in the load balancer config
   az_subnets = {
@@ -275,8 +275,10 @@ resource "aws_security_group" "lacework-proxy-scanner-efs-security-group" {
 
 #ecs
 resource "aws_ecs_task_definition" "lacework-proxy-scanner-ecs-task-definition" {
-  family = "service"
+  family                   = "service"
   requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+
   container_definitions = jsonencode([
     {
       name      = var.app_name
@@ -370,11 +372,11 @@ resource "aws_ecs_service" "lacework-proxy-scanner-ecs-service" {
 
 #certificate management
 resource "aws_acm_certificate" "cert" {
-  count = var.use_existing_acm_cert ? 0 : 1
-  private_key = var.use_existing_cert ? file(var.private_key) : tls_private_key.proxy-scanner[0].private_key_pem
-  certificate_body = var.use_existing_cert ? file(var.certificate) : tls_locally_signed_cert.proxy-scanner[0].cert_pem
+  count             = var.use_existing_acm_cert ? 0 : 1
+  private_key       = var.use_existing_cert ? file(var.private_key) : tls_private_key.proxy-scanner[0].private_key_pem
+  certificate_body  = var.use_existing_cert ? file(var.certificate) : tls_locally_signed_cert.proxy-scanner[0].cert_pem
   certificate_chain = var.use_existing_cert ? file(var.issuer) : tls_self_signed_cert.ca[0].cert_pem
-  depends_on = [tls_locally_signed_cert.proxy-scanner]
+  depends_on        = [tls_locally_signed_cert.proxy-scanner]
 }
 
 #load balancer

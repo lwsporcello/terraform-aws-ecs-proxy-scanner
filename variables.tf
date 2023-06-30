@@ -136,9 +136,9 @@ variable "private_key" {
 }
 
 variable "certificate_arn" {
-  type = string
+  type        = string
   description = "An existing AWS ACM certificate to use with the load balancer for https. Works when 'use_existing_acm_cert' is true"
-  default = ""
+  default     = ""
 }
 
 #Lacework proxy scanner settings
