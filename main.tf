@@ -408,7 +408,7 @@ resource "aws_lb_listener" "lacework-proxy-scanner-lb-listener" {
   port              = var.lb_port
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-2016-08"
-  certificate_arn   = local.lb-certificate
+  certificate_arn   = local.lb-certificate.arn
 
   default_action {
     type             = "forward"
