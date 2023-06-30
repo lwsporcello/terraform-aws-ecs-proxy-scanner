@@ -5,6 +5,12 @@ locals {
   task_role_arn      = var.use_existing_task_role ? var.task_role_arn : aws_iam_role.ecs_task_role[0].arn
   sources_cidr       = ["0.0.0.0/0"]
 
+  #build a map of subnets in each az so we can use one for each in the load balancer config
+  az_subnets = {
+    for s in data.aws_subnet.subnets-map : s.availability_zone => s.id...
+  }
+
+  #proxy scanner configuration formatting
   config = yamlencode({
     static_cache_location : var.static_cache_location
     scan_public_registries : var.scan_public_registries
@@ -146,8 +152,17 @@ data "aws_subnets" "vpc_subnets" {
   }
 }
 
+data "aws_subnet" "subnets-map" {
+  for_each = toset(data.aws_subnets.vpc_subnets.ids)
+  id       = each.key
+}
+
 output "subnets" {
   value = data.aws_subnets.vpc_subnets
+}
+
+output "subnets-map" {
+  value = data.aws_subnet.subnets-map
 }
 
 data "aws_availability_zones" "available" {
@@ -183,7 +198,7 @@ resource "aws_efs_mount_target" "lacework-proxy-scanner-efs-mount" {
 
 #security groups
 resource "aws_security_group" "lacework-proxy-scanner-ecs-security-group" {
-  name        = var.app_name
+  name        = "${var.app_name}-ecs-sg"
   description = "${var.app_name} ECS Security Group - allow inbound and outbound for ECS task"
   vpc_id      = local.vpc_id
   ingress {
@@ -204,7 +219,7 @@ resource "aws_security_group" "lacework-proxy-scanner-ecs-security-group" {
 }
 
 resource "aws_security_group" "lacework-proxy-scanner-lb-security-group" {
-  name        = var.app_name
+  name        = "${var.app_name}-lb-sg"
   description = "${var.app_name} ECS Security Group - allow inbound for load balancer"
   vpc_id      = local.vpc_id
   ingress {
@@ -225,7 +240,7 @@ resource "aws_security_group" "lacework-proxy-scanner-lb-security-group" {
 }
 
 resource "aws_security_group" "lacework-proxy-scanner-efs-security-group" {
-  name        = var.app_name
+  name        = "${var.app_name}-efs-sg"
   description = "${var.app_name} EFS Security Group - allow ECS to EFS"
   vpc_id      = local.vpc_id
   ingress {
@@ -273,12 +288,13 @@ resource "aws_ecs_task_definition" "lacework-proxy-scanner-ecs-task-definition" 
           readOnly      = true
         }
       ]
-      #environment = [
-      #  {
-      #    LW_CONFIG = base64encode(templatefile("${path.module}/config.yaml", {}))
-      #  }
-      #]
-      #command = ["sh", "-c", "echo $LW_CONFIG | base64 --decode >/opt/lacework/config/config.yml && /opt/lacework/run.sh"]
+      environment = [
+        {
+          #    LW_CONFIG = base64encode(templatefile("${path.module}/config.yaml", {}))
+          LW_CONFIG = base64encode(local.config)
+        }
+      ]
+      command = ["sh", "-c", "echo $LW_CONFIG | base64 --decode >/opt/lacework/config/config.yml && /opt/lacework/run.sh"]
     }
   ])
 
@@ -303,10 +319,10 @@ resource "aws_ecs_task_definition" "lacework-proxy-scanner-ecs-task-definition" 
     }
   }
 
-  provisioner "file" {
-    content     = local.config
-    destination = "/opt/lacework/config/config.yaml"
-  }
+  #provisioner "file" {
+  #  content     = local.config
+  #  destination = "/opt/lacework/config/config.yaml"
+  #}
 }
 
 resource "aws_ecs_cluster" "lacework-proxy-scanner-ecs-cluster" {
@@ -356,7 +372,7 @@ resource "aws_lb" "lacework-proxy-scanner-lb" {
   load_balancer_type = "application"
   idle_timeout       = 300
   security_groups    = [aws_security_group.lacework-proxy-scanner-lb-security-group.id]
-  subnets            = data.aws_subnets.vpc_subnets.ids
+  subnets            = [for subnet_ids in local.az_subnets : subnet_ids[0]]
 }
 
 resource "aws_lb_target_group" "lacework-proxy-scanner-lb-tg" {
