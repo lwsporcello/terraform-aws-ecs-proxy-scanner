@@ -157,6 +157,13 @@ data "aws_subnet" "subnets-map" {
   id       = each.key
 }
 
+output "configb_64" {
+  value = base64encode(local.config)
+}
+output "az_subnets" {
+  value = local.az_subnets
+}
+
 output "subnets" {
   value = data.aws_subnets.vpc_subnets
 }
@@ -190,9 +197,14 @@ resource "aws_efs_mount_target" "lacework-proxy-scanner-efs-mount" {
   #subnet_id = element(data.aws_subnets.vpc_subnets.ids, count.index)
   #security_groups = [aws_security_group.efs.id]
 
-  for_each        = toset(data.aws_subnets.vpc_subnets.ids)
+  #for_each        = toset(data.aws_subnets.vpc_subnets.ids)
+  #file_system_id  = aws_efs_file_system.lacework-proxy-scanner-efs.id
+  #subnet_id       = each.value
+  #security_groups = [aws_security_group.lacework-proxy-scanner-efs-security-group.id]
+
+  for_each        = local.az_subnets
+  subnet_id       = each.value[0]
   file_system_id  = aws_efs_file_system.lacework-proxy-scanner-efs.id
-  subnet_id       = each.value
   security_groups = [aws_security_group.lacework-proxy-scanner-efs-security-group.id]
 }
 
@@ -290,8 +302,8 @@ resource "aws_ecs_task_definition" "lacework-proxy-scanner-ecs-task-definition" 
       ]
       environment = [
         {
-          #    LW_CONFIG = base64encode(templatefile("${path.module}/config.yaml", {}))
-          LW_CONFIG = base64encode(local.config)
+          name  = "LW_CONFIG"
+          value = base64encode(local.config)
         }
       ]
       command = ["sh", "-c", "echo $LW_CONFIG | base64 --decode >/opt/lacework/config/config.yml && /opt/lacework/run.sh"]
