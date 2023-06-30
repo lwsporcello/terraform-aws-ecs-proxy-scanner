@@ -276,6 +276,7 @@ resource "aws_security_group" "lacework-proxy-scanner-efs-security-group" {
 #ecs
 resource "aws_ecs_task_definition" "lacework-proxy-scanner-ecs-task-definition" {
   family = "service"
+  requires_compatibilities = ["FARGATE"]
   container_definitions = jsonencode([
     {
       name      = var.app_name
