@@ -4,6 +4,7 @@ locals {
   execution_role_arn = var.use_existing_execution_role ? var.execution_role_arn : aws_iam_role.ecs_execution_role[0].arn
   task_role_arn      = var.use_existing_task_role ? var.task_role_arn : aws_iam_role.ecs_task_role[0].arn
   sources_cidr       = ["0.0.0.0/0"]
+  lb-certificate = var.use_existing_cert ? (var.use_existing_acm_cert ? var.certificate_arn : aws_acm_certificate.cert[0] ) : aws_acm_certificate.cert[0]
 
   #build a map of subnets in each az so we can use one for each in the load balancer config
   az_subnets = {
@@ -366,18 +367,16 @@ resource "aws_ecs_service" "lacework-proxy-scanner-ecs-service" {
   }
 }
 
+#certificate management
+resource "aws_acm_certificate" "cert" {
+  count = var.use_existing_acm_cert ? 0 : 1
+  private_key = var.use_existing_cert ? file(var.private_key) : tls_private_key.proxy-scanner[0].private_key_pem
+  certificate_body = var.use_existing_cert ? file(var.certificate) : tls_locally_signed_cert.proxy-scanner[0].cert_pem
+  certificate_chain = var.use_existing_cert ? file(var.issuer) : tls_self_signed_cert.ca[0].cert_pem
+  depends_on = [tls_locally_signed_cert.proxy-scanner]
+}
+
 #load balancer
-data "aws_region" "current" {}
-
-#resource "aws_acm_certificate" "lacework-certificate" {
-#  domain_name       = "*.${data.aws_region.current.name}.elb.amazonaws.com"
-#  validation_method = "DNS"
-
-#  tags = {
-#    Name = var.app_name
-#  }
-#}
-
 resource "aws_lb" "lacework-proxy-scanner-lb" {
   name               = var.app_name
   internal           = true
@@ -409,7 +408,7 @@ resource "aws_lb_listener" "lacework-proxy-scanner-lb-listener" {
   port              = var.lb_port
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-2016-08"
-  #certificate_arn   = aws_acm_certificate.lacework-certificate.arn
+  certificate_arn   = local.lb-certificate
 
   default_action {
     type             = "forward"

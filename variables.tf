@@ -104,6 +104,43 @@ variable "task_role_arn" {
   default = ""
 }
 
+#certificate management
+variable "use_existing_cert" {
+  type        = bool
+  description = "True if a cert exists that will be provided to the module for load balancer HTTPS. If false, a self-signed cert will be created by default."
+  default     = false
+}
+
+variable "use_existing_acm_cert" {
+  type        = bool
+  description = "True if cert exists in AWS ACM. Requires 'certificate_arn' to provid load balancer with cert. False if providing certificate files to the module (use private_key, certificate, and issuer variables) in this case."
+  default     = false
+}
+
+variable "issuer" {
+  type        = string
+  description = "Root certificate (issuer) for load balancer https"
+  default     = ""
+}
+
+variable "certificate" {
+  type        = string
+  description = "Certificate body for load balancer https"
+  default     = ""
+}
+
+variable "private_key" {
+  type        = string
+  description = "Certificate key for load balancer https"
+  default     = ""
+}
+
+variable "certificate_arn" {
+  type = string
+  description = "An existing AWS ACM certificate to use with the load balancer for https. Works when 'use_existing_acm_cert' is true"
+  default = ""
+}
+
 #Lacework proxy scanner settings
 variable "proxy_scanner_token" {
   type        = string
