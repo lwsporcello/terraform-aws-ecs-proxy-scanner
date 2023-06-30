@@ -278,6 +278,8 @@ resource "aws_ecs_task_definition" "lacework-proxy-scanner-ecs-task-definition" 
   family                   = "service"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
+  cpu                      = var.cpu
+  memory                   = var.mem
 
   container_definitions = jsonencode([
     {

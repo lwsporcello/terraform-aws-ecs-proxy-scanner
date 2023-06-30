@@ -41,6 +41,18 @@ variable "max_count" {
   default     = 4
 }
 
+variable "mem" {
+  type        = number
+  description = "Memory allocation for each proxy-scanner container"
+  default     = 2048
+}
+
+variable "cpu" {
+  type        = number
+  description = "CPU allocation for each proxy-scanner container"
+  default     = 1024
+}
+
 variable "mem_threshold" {
   type        = number
   description = "Average percentage memory utilization threshold when autoscaling will kick in"
