@@ -357,14 +357,14 @@ resource "aws_ecs_service" "lacework-proxy-scanner-ecs-service" {
 #load balancer
 data "aws_region" "current" {}
 
-resource "aws_acm_certificate" "lacework-certificate" {
-  domain_name       = "*.${data.aws_region.current.name}.elb.amazonaws.com"
-  validation_method = "DNS"
+#resource "aws_acm_certificate" "lacework-certificate" {
+#  domain_name       = "*.${data.aws_region.current.name}.elb.amazonaws.com"
+#  validation_method = "DNS"
 
-  tags = {
-    Name = var.app_name
-  }
-}
+#  tags = {
+#    Name = var.app_name
+#  }
+#}
 
 resource "aws_lb" "lacework-proxy-scanner-lb" {
   name               = var.app_name
@@ -397,7 +397,7 @@ resource "aws_lb_listener" "lacework-proxy-scanner-lb-listener" {
   port              = var.lb_port
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-2016-08"
-  certificate_arn   = aws_acm_certificate.lacework-certificate.arn
+  #certificate_arn   = aws_acm_certificate.lacework-certificate.arn
 
   default_action {
     type             = "forward"
