@@ -1,3 +1,4 @@
+#ECS cluster/task settings
 variable "app_name" {
   type        = string
   description = "Name of the proxy scanner app and components"
@@ -28,10 +29,28 @@ variable "image_tag" {
   default     = "latest"
 }
 
-variable "task_count" {
+variable "min_count" {
   type        = number
-  description = "Number of proxy scanner tasks to run"
+  description = "Minimum number of proxy scanners to run at any given time"
   default     = 1
+}
+
+variable "max_count" {
+  type        = number
+  description = "Maximum number of proxy scanners to run when autoscaling is triggered"
+  default     = 4
+}
+
+variable "mem_threshold" {
+  type        = number
+  description = "Average percentage memory utilization threshold when autoscaling will kick in"
+  default     = 80
+}
+
+variable "cpu_threshold" {
+  type        = number
+  description = "Average percentage cpu utilization threshold when autoscaling will kick in"
+  default     = 60
 }
 
 variable "force_new_deployment" {
@@ -46,7 +65,7 @@ variable "use_existing_vpc" {
 }
 
 variable "vpc_id" {
-  type = string
+  type    = string
   default = ""
 }
 
@@ -85,6 +104,7 @@ variable "task_role_arn" {
   default = ""
 }
 
+#Lacework proxy scanner settings
 variable "proxy_scanner_token" {
   type        = string
   description = "The token for the Lacework proxy scanner."

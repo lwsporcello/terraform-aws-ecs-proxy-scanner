@@ -1,9 +1,9 @@
 locals {
   vpc_id             = var.use_existing_vpc ? var.vpc_id : aws_vpc.lacework_vpc[0].id
   subnet_id          = var.use_existing_subnet ? var.subnet_id : aws_subnet.lacework_subnet[0].id
-  execution_role_arn = var.use_existing_execution_role ? var.execution_role_arn : aws_iam_role.ecs_execution_role[0].id
-  task_role_arn      = var.use_existing_task_role ? var.task_role_arn : aws_iam_role.ecs_task_role[0].id
-  sources_cidr = ["0.0.0.0/0"]
+  execution_role_arn = var.use_existing_execution_role ? var.execution_role_arn : aws_iam_role.ecs_execution_role[0].arn
+  task_role_arn      = var.use_existing_task_role ? var.task_role_arn : aws_iam_role.ecs_task_role[0].arn
+  sources_cidr       = ["0.0.0.0/0"]
 
   config = yamlencode({
     static_cache_location : var.static_cache_location
@@ -16,11 +16,6 @@ locals {
   })
 
 }
-
-#proxy scanner config load
-#data "local_file" "config_yaml" {
-#  filename = "${path.module}/config.yaml"
-#}
 
 #iam
 resource "aws_iam_role" "ecs_execution_role" {
@@ -136,6 +131,14 @@ resource "aws_subnet" "lacework_subnet" {
   }
 }
 
+data "aws_vpc" "vpc" {
+  id = local.vpc_id
+}
+
+output "vpc" {
+  value = data.aws_vpc.vpc
+}
+
 data "aws_subnets" "vpc_subnets" {
   filter {
     name   = "vpc-id"
@@ -143,7 +146,15 @@ data "aws_subnets" "vpc_subnets" {
   }
 }
 
+output "subnets" {
+  value = data.aws_subnets.vpc_subnets
+}
+
 data "aws_availability_zones" "available" {
+}
+
+output "az" {
+  value = data.aws_availability_zones.available
 }
 
 #efs
@@ -156,34 +167,83 @@ resource "aws_efs_file_system" "lacework-proxy-scanner-efs" {
 }
 
 resource "aws_efs_mount_target" "lacework-proxy-scanner-efs-mount" {
-  count          = length(data.aws_availability_zones.available.names)
-  file_system_id = aws_efs_file_system.lacework-proxy-scanner-efs.id
+  #count          = length(data.aws_availability_zones.available.names)
+  #count          = length(data.aws_subnets.vpc_subnets.ids)
+  #count = length(data.aws_availability_zones.available.names)
+  #file_system_id = aws_efs_file_system.lacework-proxy-scanner-efs.id
   #subnet_id      = data.aws_subnet.vpc_subnet[count.index].arn
-  subnet_id = element(data.aws_subnets.vpc_subnets.ids, count.index)
+  #subnet_id = element(data.aws_subnets.vpc_subnets.ids, count.index)
   #security_groups = [aws_security_group.efs.id]
+
+  for_each        = toset(data.aws_subnets.vpc_subnets.ids)
+  file_system_id  = aws_efs_file_system.lacework-proxy-scanner-efs.id
+  subnet_id       = each.value
+  security_groups = [aws_security_group.lacework-proxy-scanner-efs-security-group.id]
 }
 
 #security groups
-#resource "aws_security_group" "lacework-proxy-scanner-ecs-security-group" {
-#  name        = var.app_name
-#  description = "${var.app_name} ECS Security Group"
-#  vpc_id      = local.vpc_id
-#  ingress {
-#    protocol    = "tcp"
-#    from_port   = local.port
-#    to_port     = local.port
-#    cidr_blocks = [data.aws_vpc.vpc.cidr_block]
-#  }
-#  egress {
-#    protocol    = "-1"
-#    from_port   = 0
-#    to_port     = 0
-#    cidr_blocks = ["0.0.0.0/0"]
-#  }
-#  tags = {
-#    Name = var.app_name
-#  }
-#}
+resource "aws_security_group" "lacework-proxy-scanner-ecs-security-group" {
+  name        = var.app_name
+  description = "${var.app_name} ECS Security Group - allow inbound and outbound for ECS task"
+  vpc_id      = local.vpc_id
+  ingress {
+    protocol        = "tcp"
+    from_port       = var.app_port
+    to_port         = var.app_port
+    security_groups = [aws_security_group.lacework-proxy-scanner-lb-security-group.id]
+  }
+  egress {
+    protocol    = "-1"
+    from_port   = 0
+    to_port     = 0
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  tags = {
+    Name = var.app_name
+  }
+}
+
+resource "aws_security_group" "lacework-proxy-scanner-lb-security-group" {
+  name        = var.app_name
+  description = "${var.app_name} ECS Security Group - allow inbound for load balancer"
+  vpc_id      = local.vpc_id
+  ingress {
+    protocol    = "tcp"
+    from_port   = var.lb_port
+    to_port     = var.lb_port
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  egress {
+    protocol    = "-1"
+    from_port   = 0
+    to_port     = 0
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  tags = {
+    Name = var.app_name
+  }
+}
+
+resource "aws_security_group" "lacework-proxy-scanner-efs-security-group" {
+  name        = var.app_name
+  description = "${var.app_name} EFS Security Group - allow ECS to EFS"
+  vpc_id      = local.vpc_id
+  ingress {
+    security_groups = [aws_security_group.lacework-proxy-scanner-ecs-security-group.id]
+    protocol        = "tcp"
+    from_port       = 2049
+    to_port         = 2049
+  }
+  egress {
+    protocol        = "-1"
+    from_port       = 0
+    to_port         = 0
+    security_groups = [aws_security_group.lacework-proxy-scanner-ecs-security-group.id]
+  }
+  tags = {
+    Name = var.app_name
+  }
+}
 
 #ecs
 resource "aws_ecs_task_definition" "lacework-proxy-scanner-ecs-task-definition" {
@@ -259,21 +319,43 @@ resource "aws_ecs_cluster" "lacework-proxy-scanner-ecs-cluster" {
 resource "aws_ecs_service" "lacework-proxy-scanner-ecs-service" {
   name                   = "${var.app_name}-service"
   cluster                = aws_ecs_cluster.lacework-proxy-scanner-ecs-cluster.id
-  desired_count          = var.task_count
+  desired_count          = var.min_count
   force_new_deployment   = var.force_new_deployment
   enable_execute_command = true
   launch_type            = "FARGATE"
   propagate_tags         = "SERVICE"
   task_definition        = aws_ecs_task_definition.lacework-proxy-scanner-ecs-task-definition.arn
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.lacework-proxy-scanner-lb-tg.arn
+    container_name   = var.app_name
+    container_port   = var.app_port
+  }
+
+  network_configuration {
+    subnets         = data.aws_subnets.vpc_subnets.ids
+    security_groups = [aws_security_group.lacework-proxy-scanner-ecs-security-group.id, aws_security_group.lacework-proxy-scanner-lb-security-group.id, aws_security_group.lacework-proxy-scanner-efs-security-group.id]
+  }
 }
 
 #load balancer
+data "aws_region" "current" {}
+
+resource "aws_acm_certificate" "lacework-certificate" {
+  domain_name       = "*.${data.aws_region.current.name}.elb.amazonaws.com"
+  validation_method = "DNS"
+
+  tags = {
+    Name = var.app_name
+  }
+}
+
 resource "aws_lb" "lacework-proxy-scanner-lb" {
   name               = var.app_name
   internal           = true
   load_balancer_type = "application"
   idle_timeout       = 300
-  security_groups    = []
+  security_groups    = [aws_security_group.lacework-proxy-scanner-lb-security-group.id]
   subnets            = data.aws_subnets.vpc_subnets.ids
 }
 
@@ -299,10 +381,51 @@ resource "aws_lb_listener" "lacework-proxy-scanner-lb-listener" {
   port              = var.lb_port
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-2016-08"
-  certificate_arn   = ""
+  certificate_arn   = aws_acm_certificate.lacework-certificate.arn
 
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.lacework-proxy-scanner-lb-tg.arn
+  }
+}
+
+#autoscaling
+resource "aws_appautoscaling_target" "lacework-proxy-scanner-as-target" {
+  min_capacity       = var.min_count
+  max_capacity       = var.max_count
+  resource_id        = "service/${aws_ecs_cluster.lacework-proxy-scanner-ecs-cluster.name}/${aws_ecs_service.lacework-proxy-scanner-ecs-service.name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+}
+
+resource "aws_appautoscaling_policy" "lacework-proxy-scanner-as-policy-memory" {
+  name               = "memory-autoscaling"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.lacework-proxy-scanner-as-target.resource_id
+  scalable_dimension = aws_appautoscaling_target.lacework-proxy-scanner-as-target.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.lacework-proxy-scanner-as-target.service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageMemoryUtilization"
+    }
+
+    target_value = var.mem_threshold
+  }
+}
+
+resource "aws_appautoscaling_policy" "lacework-proxy-scanner-as-policy-cpu" {
+  name               = "cpu-autoscaling"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.lacework-proxy-scanner-as-target.resource_id
+  scalable_dimension = aws_appautoscaling_target.lacework-proxy-scanner-as-target.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.lacework-proxy-scanner-as-target.service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageCPUUtilization"
+    }
+
+    target_value = var.cpu_threshold
   }
 }
