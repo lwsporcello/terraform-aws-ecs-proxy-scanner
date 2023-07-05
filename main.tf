@@ -180,6 +180,8 @@ output "az" {
   value = data.aws_availability_zones.available
 }
 
+data "aws_region" "current" {}
+
 #efs
 resource "aws_efs_file_system" "lacework-proxy-scanner-efs" {
   creation_token = var.app_name
@@ -313,6 +315,15 @@ resource "aws_ecs_task_definition" "lacework-proxy-scanner-ecs-task-definition" 
         }
       ]
       command = ["sh", "-c", "echo $LW_CONFIG | base64 --decode >/opt/lacework/config/config.yml && /opt/lacework/run.sh"]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = "${var.app_name}-logs"
+          awslogs-region        = data.aws_region.current.name
+          awslogs-create-group  = true
+          awslogs-stream-prefix = "lw-ps"
+        }
+      }
     }
   ])
 
