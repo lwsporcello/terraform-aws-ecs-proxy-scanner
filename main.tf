@@ -201,7 +201,7 @@ data "aws_internet_gateway" "selected" {
   count = var.use_existing_vpc ? 1 : 0
   filter {
     name   = "attachment.vpc-id"
-    values = local.vpc_id
+    values = [local.vpc_id]
   }
 }
 
@@ -432,7 +432,7 @@ resource "aws_lb" "lacework-proxy-scanner-lb" {
   dynamic "subnet_mapping" {
     for_each = data.aws_subnets.vpc_subnets.ids
     content {
-      subnet_id = subnet.mapping.value
+      subnet_id = each.value
     }
   }
 }
