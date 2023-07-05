@@ -315,15 +315,15 @@ resource "aws_ecs_task_definition" "lacework-proxy-scanner-ecs-task-definition" 
         }
       ]
       command = ["sh", "-c", "echo $LW_CONFIG | base64 --decode >/opt/lacework/config/config.yml && /opt/lacework/run.sh"]
-      logConfiguration = {
+      logConfiguration = var.enable_logging ? {
         logDriver = "awslogs"
         options = {
-          awslogs-group         = "${var.app_name}-logs"
-          awslogs-region        = data.aws_region.current.name
+          awslogs-group         = "/ecs/${var.app_name}-logs"
+          awslogs-region        = "${data.aws_region.current.name}"
           awslogs-create-group  = "true"
-          awslogs-stream-prefix = "lw-ps"
+          awslogs-stream-prefix = "ecs"
         }
-      }
+      } : null
     }
   ])
 
@@ -470,5 +470,15 @@ resource "aws_appautoscaling_policy" "lacework-proxy-scanner-as-policy-cpu" {
     }
 
     target_value = var.cpu_threshold
+  }
+}
+
+#logging
+resource "aws_cloudwatch_log_group" "log-group" {
+  count = var.enable_logging ? 1 : 0
+  name = "${var.app_name}-logs"
+  retention_in_days = 14
+  tags = {
+    Name = var.app_name
   }
 }
