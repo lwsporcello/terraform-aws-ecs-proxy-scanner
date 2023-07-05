@@ -117,9 +117,9 @@ variable "task_role_arn" {
 }
 
 variable "enable_logging" {
-  type = bool
+  type        = bool
   description = "Enable logging for the proxy scanner containers with CloudWatch. Default is enabled."
-  default = true
+  default     = true
 }
 
 #certificate management

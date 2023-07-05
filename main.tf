@@ -1,9 +1,11 @@
 locals {
-  vpc_id             = var.use_existing_vpc ? var.vpc_id : aws_vpc.lacework_vpc[0].id
-  subnet_id          = var.use_existing_subnet ? var.subnet_id : aws_subnet.lacework_subnet[0].id
+  vpc_id              = var.use_existing_vpc ? var.vpc_id : aws_vpc.lacework_vpc[0].id
+  subnet_id           = var.use_existing_subnet ? var.subnet_id : aws_subnet.lacework_subnet[0].id
+  internet_gateway_id = var.use_existing_vpc ? data.aws_internet_gateway.selected[0].id : aws_internet_gateway.lacework_gw[0].id
+  sources_cidr        = ["0.0.0.0/0"]
+
   execution_role_arn = var.use_existing_execution_role ? var.execution_role_arn : aws_iam_role.ecs_execution_role[0].arn
   task_role_arn      = var.use_existing_task_role ? var.task_role_arn : aws_iam_role.ecs_task_role[0].arn
-  sources_cidr       = ["0.0.0.0/0"]
   lb-certificate     = var.use_existing_cert ? (var.use_existing_acm_cert ? var.certificate_arn : aws_acm_certificate.cert[0]) : aws_acm_certificate.cert[0]
 
   #build a map of subnets in each az so we can use one for each in the load balancer config
@@ -128,6 +130,19 @@ resource "aws_route_table" "lacework_rt" {
   }
 }
 
+resource "aws_route_table_association" "lacework_rt_assoc" {
+  count          = var.use_existing_subnet ? 0 : 1
+  subnet_id      = aws_subnet.lacework_subnet[0].id
+  route_table_id = aws_route_table.lacework_rt[0].id
+}
+
+resource "aws_route" "lacework_route" {
+  count                  = var.use_existing_subnet ? 0 : 1
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = local.internet_gateway_id
+  route_table_id         = aws_route_table.lacework_rt[0].id
+}
+
 resource "aws_subnet" "lacework_subnet" {
   count      = var.use_existing_subnet ? 0 : 1
   vpc_id     = local.vpc_id
@@ -181,6 +196,14 @@ output "az" {
 }
 
 data "aws_region" "current" {}
+
+data "aws_internet_gateway" "selected" {
+  count = var.use_existing_vpc ? 1 : 0
+  filter {
+    name   = "attachment.vpc-id"
+    values = local.vpc_id
+  }
+}
 
 #efs
 resource "aws_efs_file_system" "lacework-proxy-scanner-efs" {
@@ -475,8 +498,8 @@ resource "aws_appautoscaling_policy" "lacework-proxy-scanner-as-policy-cpu" {
 
 #logging
 resource "aws_cloudwatch_log_group" "log-group" {
-  count = var.enable_logging ? 1 : 0
-  name = "${var.app_name}-logs"
+  count             = var.enable_logging ? 1 : 0
+  name              = "${var.app_name}-logs"
   retention_in_days = 14
   tags = {
     Name = var.app_name
