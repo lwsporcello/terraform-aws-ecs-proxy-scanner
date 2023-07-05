@@ -15,7 +15,7 @@ resource "tls_self_signed_cert" "ca" {
     "digital_signature",
   ]
   subject {
-    common_name = "admission_ca"
+    common_name = "lacework_ca"
   }
 }
 
