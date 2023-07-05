@@ -320,7 +320,7 @@ resource "aws_ecs_task_definition" "lacework-proxy-scanner-ecs-task-definition" 
         options = {
           awslogs-group         = "${var.app_name}-logs"
           awslogs-region        = data.aws_region.current.name
-          awslogs-create-group  = true
+          awslogs-create-group  = "true"
           awslogs-stream-prefix = "lw-ps"
         }
       }
