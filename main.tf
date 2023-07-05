@@ -9,9 +9,9 @@ locals {
   lb-certificate     = var.use_existing_cert ? (var.use_existing_acm_cert ? var.certificate_arn : aws_acm_certificate.cert[0]) : aws_acm_certificate.cert[0]
 
   #build a map of subnets in each az so we can use one for each in the load balancer config
-  az_subnets = {
-    for s in data.aws_subnet.subnets-map : s.availability_zone => s.id...
-  }
+  #az_subnets = {
+  #  for s in data.aws_subnet.subnets-map : s.availability_zone => s.id...
+  #}
 
   #proxy scanner configuration formatting
   config = yamlencode({
@@ -168,25 +168,25 @@ data "aws_subnets" "vpc_subnets" {
   }
 }
 
-data "aws_subnet" "subnets-map" {
-  for_each = toset(data.aws_subnets.vpc_subnets.ids)
-  id       = each.key
-}
+#data "aws_subnet" "subnets-map" {
+#  for_each = toset(data.aws_subnets.vpc_subnets.ids)
+#  id       = each.key
+#}
 
 output "configb_64" {
   value = base64encode(local.config)
 }
-output "az_subnets" {
-  value = local.az_subnets
-}
+#output "az_subnets" {
+#  value = local.az_subnets
+#}
 
 output "subnets" {
   value = data.aws_subnets.vpc_subnets
 }
 
-output "subnets-map" {
-  value = data.aws_subnet.subnets-map
-}
+#output "subnets-map" {
+#  value = data.aws_subnet.subnets-map
+#}
 
 data "aws_availability_zones" "available" {
 }
@@ -216,22 +216,21 @@ resource "aws_efs_file_system" "lacework-proxy-scanner-efs" {
 
 resource "aws_efs_mount_target" "lacework-proxy-scanner-efs-mount" {
   #count          = length(data.aws_availability_zones.available.names)
-  #count          = length(data.aws_subnets.vpc_subnets.ids)
-  #count = length(data.aws_availability_zones.available.names)
   #file_system_id = aws_efs_file_system.lacework-proxy-scanner-efs.id
   #subnet_id      = data.aws_subnet.vpc_subnet[count.index].arn
   #subnet_id = element(data.aws_subnets.vpc_subnets.ids, count.index)
   #security_groups = [aws_security_group.efs.id]
 
   #for_each        = toset(data.aws_subnets.vpc_subnets.ids)
-  #file_system_id  = aws_efs_file_system.lacework-proxy-scanner-efs.id
-  #subnet_id       = each.value
-  #security_groups = [aws_security_group.lacework-proxy-scanner-efs-security-group.id]
-
-  for_each        = local.az_subnets
-  subnet_id       = each.value[0]
+  count = length(data.aws_subnets.vpc_subnets.ids)
   file_system_id  = aws_efs_file_system.lacework-proxy-scanner-efs.id
+  subnet_id       = element(data.aws_subnets.vpc_subnets.ids, count.index)
   security_groups = [aws_security_group.lacework-proxy-scanner-efs-security-group.id]
+
+  #for_each        = local.az_subnets
+  #subnet_id       = each.value[0]
+  #file_system_id  = aws_efs_file_system.lacework-proxy-scanner-efs.id
+  #security_groups = [aws_security_group.lacework-proxy-scanner-efs-security-group.id]
 }
 
 #security groups
@@ -422,7 +421,13 @@ resource "aws_lb" "lacework-proxy-scanner-lb" {
   load_balancer_type = "application"
   idle_timeout       = 300
   security_groups    = [aws_security_group.lacework-proxy-scanner-lb-security-group.id]
-  subnets            = [for subnet_ids in local.az_subnets : subnet_ids[0]]
+  #subnets            = [for subnet_ids in local.az_subnets : subnet_ids[0]]
+  dynamic "subnet_mapping" {
+    for_each = data.aws_subnets.vpc_subnets.ids
+    content {
+      subnet_id = subnet.mapping.value
+    }
+  }
 }
 
 resource "aws_lb_target_group" "lacework-proxy-scanner-lb-tg" {
