@@ -1,6 +1,6 @@
 locals {
   vpc_id              = var.use_existing_vpc ? var.vpc_id : aws_vpc.lacework_vpc[0].id
-  subnet_id           = var.use_existing_subnet ? var.subnet_id : aws_subnet.lacework_subnet[0].id
+  #subnet_id           = var.use_existing_subnet ? var.subnet_id : aws_subnet.lacework_subnet[0].id
   internet_gateway_id = var.use_existing_vpc ? data.aws_internet_gateway.selected[0].id : aws_internet_gateway.lacework_gw[0].id
   sources_cidr        = ["0.0.0.0/0"]
 
@@ -112,6 +112,21 @@ resource "aws_vpc" "lacework_vpc" {
   }
 }
 
+resource "aws_route_table" "lacework_rt" {
+  count  = var.use_existing_vpc ? 0 : 1
+  vpc_id = local.vpc_id
+
+  tags = {
+    Name = var.app_name
+  }
+}
+
+resource "aws_route_table_association" "lacework_rt_assoc" {
+  count          = var.use_existing_vpc ? 0 : 1
+  subnet_id      = aws_subnet.lacework_subnet[0].id
+  route_table_id = aws_route_table.lacework_rt[0].id
+}
+
 resource "aws_internet_gateway" "lacework_gw" {
   count  = var.use_existing_vpc ? 0 : 1
   vpc_id = local.vpc_id
@@ -121,30 +136,15 @@ resource "aws_internet_gateway" "lacework_gw" {
   }
 }
 
-resource "aws_route_table" "lacework_rt" {
-  count  = var.use_existing_subnet ? 0 : 1
-  vpc_id = local.vpc_id
-
-  tags = {
-    Name = var.app_name
-  }
-}
-
-resource "aws_route_table_association" "lacework_rt_assoc" {
-  count          = var.use_existing_subnet ? 0 : 1
-  subnet_id      = aws_subnet.lacework_subnet[0].id
-  route_table_id = aws_route_table.lacework_rt[0].id
-}
-
 resource "aws_route" "lacework_route" {
-  count                  = var.use_existing_subnet ? 0 : 1
+  count                  = var.use_existing_vpc ? 0 : 1
   destination_cidr_block = "0.0.0.0/0"
   gateway_id             = local.internet_gateway_id
   route_table_id         = aws_route_table.lacework_rt[0].id
 }
 
 resource "aws_subnet" "lacework_subnet" {
-  count      = var.use_existing_subnet ? 0 : 1
+  count      = var.use_existing_vpc ? 0 : 1
   vpc_id     = local.vpc_id
   cidr_block = var.vpc_cidr_block
 

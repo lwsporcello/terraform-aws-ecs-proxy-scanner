@@ -86,15 +86,15 @@ variable "vpc_cidr_block" {
   default = "10.10.32.0/24"
 }
 
-variable "use_existing_subnet" {
-  type    = bool
-  default = true
-}
+#variable "use_existing_subnet" {
+#  type    = bool
+#  default = true
+#}
 
-variable "subnet_id" {
-  type    = string
-  default = ""
-}
+#variable "subnet_id" {
+#  type    = string
+#  default = ""
+#}
 
 variable "use_existing_execution_role" {
   type    = bool
