@@ -86,6 +86,26 @@ variable "vpc_cidr_block" {
   default = "10.10.32.0/24"
 }
 
+variable "subnet_cidr_block_1" {
+  type    = string
+  default = "10.10.32.0/25"
+}
+
+variable "subnet_cidr_block_2" {
+  type    = string
+  default = "10.10.32.128/25"
+}
+
+variable "az_1" {
+  type    = string
+  default = "us-east-1"
+}
+
+variable "az_2" {
+  type    = string
+  default = "us-west-1"
+}
+
 #variable "use_existing_subnet" {
 #  type    = bool
 #  default = true

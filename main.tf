@@ -1,5 +1,5 @@
 locals {
-  vpc_id              = var.use_existing_vpc ? var.vpc_id : aws_vpc.lacework_vpc[0].id
+  vpc_id = var.use_existing_vpc ? var.vpc_id : aws_vpc.lacework_vpc[0].id
   #subnet_id           = var.use_existing_subnet ? var.subnet_id : aws_subnet.lacework_subnet[0].id
   internet_gateway_id = var.use_existing_vpc ? data.aws_internet_gateway.selected[0].id : aws_internet_gateway.lacework_gw[0].id
   sources_cidr        = ["0.0.0.0/0"]
@@ -121,9 +121,15 @@ resource "aws_route_table" "lacework_rt" {
   }
 }
 
-resource "aws_route_table_association" "lacework_rt_assoc" {
+resource "aws_route_table_association" "lacework_rt_assoc_1" {
   count          = var.use_existing_vpc ? 0 : 1
-  subnet_id      = aws_subnet.lacework_subnet[0].id
+  subnet_id      = aws_subnet.lacework_subnet_1[0].id
+  route_table_id = aws_route_table.lacework_rt[0].id
+}
+
+resource "aws_route_table_association" "lacework_rt_assoc_2" {
+  count          = var.use_existing_vpc ? 0 : 1
+  subnet_id      = aws_subnet.lacework_subnet_2[0].id
   route_table_id = aws_route_table.lacework_rt[0].id
 }
 
@@ -143,10 +149,22 @@ resource "aws_route" "lacework_route" {
   route_table_id         = aws_route_table.lacework_rt[0].id
 }
 
-resource "aws_subnet" "lacework_subnet" {
-  count      = var.use_existing_vpc ? 0 : 1
-  vpc_id     = local.vpc_id
-  cidr_block = var.vpc_cidr_block
+resource "aws_subnet" "lacework_subnet_1" {
+  count             = var.use_existing_vpc ? 0 : 1
+  vpc_id            = local.vpc_id
+  cidr_block        = var.subnet_cidr_block_1
+  availability_zone = var.az_1
+
+  tags = {
+    Name = "main"
+  }
+}
+
+resource "aws_subnet" "lacework_subnet_2" {
+  count             = var.use_existing_vpc ? 0 : 1
+  vpc_id            = local.vpc_id
+  cidr_block        = var.subnet_cidr_block_2
+  availability_zone = var.az_2
 
   tags = {
     Name = "main"
@@ -214,13 +232,6 @@ resource "aws_efs_file_system" "lacework-proxy-scanner-efs" {
   }
 }
 
-resource "aws_efs_mount_target" "lacework-proxy-scanner-efs-mount_new_vpc" {
-  count           = var.use_existing_vpc ? 0 : 1
-  file_system_id  = aws_efs_file_system.lacework-proxy-scanner-efs.id
-  subnet_id       = aws_subnet.lacework_subnet[0].id
-  security_groups = [aws_security_group.lacework-proxy-scanner-efs-security-group.id]
-}
-
 resource "aws_efs_mount_target" "lacework-proxy-scanner-efs-mount_existing_vpc" {
   #count          = length(data.aws_availability_zones.available.names)
   #file_system_id = aws_efs_file_system.lacework-proxy-scanner-efs.id
@@ -229,7 +240,7 @@ resource "aws_efs_mount_target" "lacework-proxy-scanner-efs-mount_existing_vpc" 
   #security_groups = [aws_security_group.efs.id]
 
   #for_each        = toset(data.aws_subnets.vpc_subnets.ids)
-  count           = var.use_existing_vpc ? length(data.aws_subnets.vpc_subnets.ids) : 0
+  count           = length(data.aws_subnets.vpc_subnets.ids)
   file_system_id  = aws_efs_file_system.lacework-proxy-scanner-efs.id
   subnet_id       = element(data.aws_subnets.vpc_subnets.ids, count.index)
   security_groups = [aws_security_group.lacework-proxy-scanner-efs-security-group.id]
