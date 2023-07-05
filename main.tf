@@ -432,7 +432,7 @@ resource "aws_lb" "lacework-proxy-scanner-lb" {
   dynamic "subnet_mapping" {
     for_each = data.aws_subnets.vpc_subnets.ids
     content {
-      subnet_id = each.value
+      subnet_id = data.aws_subnets.vpc_subnets.ids[subnet_mapping.key]
     }
   }
 }
