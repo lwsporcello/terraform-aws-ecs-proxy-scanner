@@ -99,12 +99,12 @@ variable "subnet_cidr_block_2" {
 
 variable "az_1" {
   type    = string
-  default = "us-east-1"
+  default = "us-east-1a"
 }
 
 variable "az_2" {
   type    = string
-  default = "us-west-1"
+  default = "us-west-1a"
 }
 
 #variable "use_existing_subnet" {
