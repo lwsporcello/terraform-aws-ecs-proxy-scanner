@@ -1,6 +1,6 @@
 locals {
   vpc_id              = var.use_existing_network ? var.vpc_id : aws_vpc.lacework_vpc[0].id
-  internet_gateway_id = var.use_existing_network ? data.aws_internet_gateway.selected[0].id : aws_internet_gateway.lacework_gw[0].id
+  internet_gateway_id = var.use_existing_network ? data.aws_internet_gateway.selected[0].id : aws_internet_gateway.lacework_igw[0].id
   sources_cidr        = ["0.0.0.0/0"]
 
   execution_role_arn = var.use_existing_execution_role ? var.execution_role_arn : aws_iam_role.ecs_execution_role[0].arn
@@ -120,7 +120,7 @@ resource "aws_route_table" "lacework_rt" {
   vpc_id = local.vpc_id
 
   tags = {
-    Name = var.app_name
+    Name = "${var.app_name}-rt"
   }
 }
 
@@ -136,12 +136,12 @@ resource "aws_route_table_association" "lacework_rt_assoc_2" {
   route_table_id = aws_route_table.lacework_rt[0].id
 }
 
-resource "aws_internet_gateway" "lacework_gw" {
+resource "aws_internet_gateway" "lacework_igw" {
   count  = var.use_existing_network ? 0 : 1
   vpc_id = local.vpc_id
 
   tags = {
-    Name = var.app_name
+    Name = "${var.app_name}-igw"
   }
 }
 
@@ -153,24 +153,26 @@ resource "aws_route" "lacework_route" {
 }
 
 resource "aws_subnet" "lacework_subnet_1" {
-  count             = var.use_existing_network ? 0 : 1
-  vpc_id            = local.vpc_id
-  cidr_block        = var.subnet_cidr_block_1
-  availability_zone = var.az_1
+  count                   = var.use_existing_network ? 0 : 1
+  vpc_id                  = local.vpc_id
+  cidr_block              = var.subnet_cidr_block_1
+  availability_zone       = var.az_1
+  map_public_ip_on_launch = true
 
   tags = {
-    Name = "main"
+    Name = "${var.app_name}-subnet-1"
   }
 }
 
 resource "aws_subnet" "lacework_subnet_2" {
-  count             = var.use_existing_network ? 0 : 1
-  vpc_id            = local.vpc_id
-  cidr_block        = var.subnet_cidr_block_2
-  availability_zone = var.az_2
+  count                   = var.use_existing_network ? 0 : 1
+  vpc_id                  = local.vpc_id
+  cidr_block              = var.subnet_cidr_block_2
+  availability_zone       = var.az_2
+  map_public_ip_on_launch = true
 
   tags = {
-    Name = "main"
+    Name = "${var.app_name}-subnet-2"
   }
 }
 
@@ -251,23 +253,23 @@ resource "aws_efs_mount_target" "lacework-proxy-scanner-efs-mount" {
 #}
 
 #resource "aws_efs_mount_target" "lacework-proxy-scanner-efs-mount_existing_vpc" {
-  #count          = length(data.aws_availability_zones.available.names)
-  #file_system_id = aws_efs_file_system.lacework-proxy-scanner-efs.id
-  #subnet_id      = data.aws_subnet.vpc_subnet[count.index].arn
-  #subnet_id = element(data.aws_subnets.vpc_subnets.ids, count.index)
-  #security_groups = [aws_security_group.efs.id]
-  #for_each        = toset(data.aws_subnets.vpc_subnets.ids)
-  #count           = length(data.aws_subnets.vpc_subnets.ids)
+#count          = length(data.aws_availability_zones.available.names)
+#file_system_id = aws_efs_file_system.lacework-proxy-scanner-efs.id
+#subnet_id      = data.aws_subnet.vpc_subnet[count.index].arn
+#subnet_id = element(data.aws_subnets.vpc_subnets.ids, count.index)
+#security_groups = [aws_security_group.efs.id]
+#for_each        = toset(data.aws_subnets.vpc_subnets.ids)
+#count           = length(data.aws_subnets.vpc_subnets.ids)
 
 #  count           = var.use_existing_network ? length(data.aws_subnets.vpc_subnets.ids) : 0
 #  file_system_id  = aws_efs_file_system.lacework-proxy-scanner-efs.id
 #  security_groups = [aws_security_group.lacework-proxy-scanner-efs-security-group.id]
 #  subnet_id       = element(data.aws_subnets.vpc_subnets.ids, count.index)
 
-  #for_each        = local.az_subnets
-  #subnet_id       = each.value[0]
-  #file_system_id  = aws_efs_file_system.lacework-proxy-scanner-efs.id
-  #security_groups = [aws_security_group.lacework-proxy-scanner-efs-security-group.id]
+#for_each        = local.az_subnets
+#subnet_id       = each.value[0]
+#file_system_id  = aws_efs_file_system.lacework-proxy-scanner-efs.id
+#security_groups = [aws_security_group.lacework-proxy-scanner-efs-security-group.id]
 #}
 
 #security groups
@@ -548,7 +550,7 @@ resource "aws_appautoscaling_policy" "lacework-proxy-scanner-as-policy-cpu" {
 #logging
 resource "aws_cloudwatch_log_group" "log-group" {
   count             = var.enable_logging ? 1 : 0
-  name              = "${var.app_name}-logs"
+  name              = "/ecs/${var.app_name}-logs"
   retention_in_days = 14
   tags = {
     Name = var.app_name
