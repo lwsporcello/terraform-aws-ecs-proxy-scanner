@@ -104,7 +104,7 @@ variable "az_1" {
 
 variable "az_2" {
   type    = string
-  default = "us-west-1a"
+  default = "us-east-1b"
 }
 
 #variable "use_existing_subnet" {
