@@ -440,8 +440,9 @@ resource "aws_ecs_service" "lacework-proxy-scanner-ecs-service" {
 
   network_configuration {
     #subnets         = data.aws_subnets.vpc_subnets.ids
-    subnets         = local.subnets
-    security_groups = [aws_security_group.lacework-proxy-scanner-ecs-security-group.id, aws_security_group.lacework-proxy-scanner-lb-security-group.id, aws_security_group.lacework-proxy-scanner-efs-security-group.id]
+    subnets          = local.subnets
+    assign_public_ip = true
+    security_groups  = [aws_security_group.lacework-proxy-scanner-ecs-security-group.id, aws_security_group.lacework-proxy-scanner-lb-security-group.id, aws_security_group.lacework-proxy-scanner-efs-security-group.id]
   }
 }
 
