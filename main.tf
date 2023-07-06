@@ -232,17 +232,18 @@ resource "aws_efs_file_system" "lacework-proxy-scanner-efs" {
   }
 }
 
-resource "aws_efs_mount_target" "lacework-proxy-scanner-efs-mount_existing_vpc" {
+resource "aws_efs_mount_target" "lacework-proxy-scanner-efs-mount" {
   #count          = length(data.aws_availability_zones.available.names)
   #file_system_id = aws_efs_file_system.lacework-proxy-scanner-efs.id
   #subnet_id      = data.aws_subnet.vpc_subnet[count.index].arn
   #subnet_id = element(data.aws_subnets.vpc_subnets.ids, count.index)
   #security_groups = [aws_security_group.efs.id]
 
-  #for_each        = toset(data.aws_subnets.vpc_subnets.ids)
-  count           = length(data.aws_subnets.vpc_subnets.ids)
+  for_each        = toset(data.aws_subnets.vpc_subnets.ids)
+  #count           = length(data.aws_subnets.vpc_subnets.ids)
   file_system_id  = aws_efs_file_system.lacework-proxy-scanner-efs.id
-  subnet_id       = element(data.aws_subnets.vpc_subnets.ids, count.index)
+  #subnet_id       = element(data.aws_subnets.vpc_subnets.ids, count.index)
+  subnet_id = each.key
   security_groups = [aws_security_group.lacework-proxy-scanner-efs-security-group.id]
 
   #for_each        = local.az_subnets
