@@ -1,12 +1,14 @@
 locals {
-  vpc_id = var.use_existing_vpc ? var.vpc_id : aws_vpc.lacework_vpc[0].id
-  #subnet_id           = var.use_existing_subnet ? var.subnet_id : aws_subnet.lacework_subnet[0].id
-  internet_gateway_id = var.use_existing_vpc ? data.aws_internet_gateway.selected[0].id : aws_internet_gateway.lacework_gw[0].id
+  vpc_id              = var.use_existing_network ? var.vpc_id : aws_vpc.lacework_vpc[0].id
+  internet_gateway_id = var.use_existing_network ? data.aws_internet_gateway.selected[0].id : aws_internet_gateway.lacework_gw[0].id
   sources_cidr        = ["0.0.0.0/0"]
 
   execution_role_arn = var.use_existing_execution_role ? var.execution_role_arn : aws_iam_role.ecs_execution_role[0].arn
   task_role_arn      = var.use_existing_task_role ? var.task_role_arn : aws_iam_role.ecs_task_role[0].arn
   lb-certificate     = var.use_existing_cert ? (var.use_existing_acm_cert ? var.certificate_arn : aws_acm_certificate.cert[0]) : aws_acm_certificate.cert[0]
+
+  #subnets
+  new_subnets = var.use_existing_network ? [] : [aws_subnet.lacework_subnet_1[0].id, aws_subnet.lacework_subnet_2[0].id]
 
   #build a map of subnets in each az so we can use one for each in the load balancer config
   #az_subnets = {
@@ -32,7 +34,7 @@ resource "aws_iam_role" "ecs_execution_role" {
   name                 = "${var.app_name}-task-execution-role"
   max_session_duration = 3600
   path                 = "/"
-  #managed_policy_arns  = ["arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"]
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -102,7 +104,7 @@ resource "aws_iam_role" "ecs_task_role" {
 
 #networking
 resource "aws_vpc" "lacework_vpc" {
-  count                = var.use_existing_vpc ? 0 : 1
+  count                = var.use_existing_network ? 0 : 1
   cidr_block           = var.vpc_cidr_block
   enable_dns_support   = true
   enable_dns_hostnames = true
@@ -113,7 +115,7 @@ resource "aws_vpc" "lacework_vpc" {
 }
 
 resource "aws_route_table" "lacework_rt" {
-  count  = var.use_existing_vpc ? 0 : 1
+  count  = var.use_existing_network ? 0 : 1
   vpc_id = local.vpc_id
 
   tags = {
@@ -122,19 +124,19 @@ resource "aws_route_table" "lacework_rt" {
 }
 
 resource "aws_route_table_association" "lacework_rt_assoc_1" {
-  count          = var.use_existing_vpc ? 0 : 1
+  count          = var.use_existing_network ? 0 : 1
   subnet_id      = aws_subnet.lacework_subnet_1[0].id
   route_table_id = aws_route_table.lacework_rt[0].id
 }
 
 resource "aws_route_table_association" "lacework_rt_assoc_2" {
-  count          = var.use_existing_vpc ? 0 : 1
+  count          = var.use_existing_network ? 0 : 1
   subnet_id      = aws_subnet.lacework_subnet_2[0].id
   route_table_id = aws_route_table.lacework_rt[0].id
 }
 
 resource "aws_internet_gateway" "lacework_gw" {
-  count  = var.use_existing_vpc ? 0 : 1
+  count  = var.use_existing_network ? 0 : 1
   vpc_id = local.vpc_id
 
   tags = {
@@ -143,14 +145,14 @@ resource "aws_internet_gateway" "lacework_gw" {
 }
 
 resource "aws_route" "lacework_route" {
-  count                  = var.use_existing_vpc ? 0 : 1
+  count                  = var.use_existing_network ? 0 : 1
   destination_cidr_block = "0.0.0.0/0"
   gateway_id             = local.internet_gateway_id
   route_table_id         = aws_route_table.lacework_rt[0].id
 }
 
 resource "aws_subnet" "lacework_subnet_1" {
-  count             = var.use_existing_vpc ? 0 : 1
+  count             = var.use_existing_network ? 0 : 1
   vpc_id            = local.vpc_id
   cidr_block        = var.subnet_cidr_block_1
   availability_zone = var.az_1
@@ -161,7 +163,7 @@ resource "aws_subnet" "lacework_subnet_1" {
 }
 
 resource "aws_subnet" "lacework_subnet_2" {
-  count             = var.use_existing_vpc ? 0 : 1
+  count             = var.use_existing_network ? 0 : 1
   vpc_id            = local.vpc_id
   cidr_block        = var.subnet_cidr_block_2
   availability_zone = var.az_2
@@ -194,6 +196,7 @@ data "aws_subnets" "vpc_subnets" {
 output "configb_64" {
   value = base64encode(local.config)
 }
+
 #output "az_subnets" {
 #  value = local.az_subnets
 #}
@@ -216,7 +219,7 @@ output "az" {
 data "aws_region" "current" {}
 
 data "aws_internet_gateway" "selected" {
-  count = var.use_existing_vpc ? 1 : 0
+  count = var.use_existing_network ? 1 : 0
   filter {
     name   = "attachment.vpc-id"
     values = [local.vpc_id]
@@ -232,19 +235,33 @@ resource "aws_efs_file_system" "lacework-proxy-scanner-efs" {
   }
 }
 
-resource "aws_efs_mount_target" "lacework-proxy-scanner-efs-mount" {
+resource "aws_efs_mount_target" "lacework-proxy-scanner-efs-mount_new_vpc" {
   #count          = length(data.aws_availability_zones.available.names)
   #file_system_id = aws_efs_file_system.lacework-proxy-scanner-efs.id
   #subnet_id      = data.aws_subnet.vpc_subnet[count.index].arn
   #subnet_id = element(data.aws_subnets.vpc_subnets.ids, count.index)
   #security_groups = [aws_security_group.efs.id]
 
-  for_each        = toset(data.aws_subnets.vpc_subnets.ids)
-  #count           = length(data.aws_subnets.vpc_subnets.ids)
+  count           = var.use_existing_network ? 0 : 2
   file_system_id  = aws_efs_file_system.lacework-proxy-scanner-efs.id
-  #subnet_id       = element(data.aws_subnets.vpc_subnets.ids, count.index)
-  subnet_id = each.key
   security_groups = [aws_security_group.lacework-proxy-scanner-efs-security-group.id]
+  subnet_id       = element(local.new_subnets, count.index)
+
+}
+
+resource "aws_efs_mount_target" "lacework-proxy-scanner-efs-mount_existing_vpc" {
+  #count          = length(data.aws_availability_zones.available.names)
+  #file_system_id = aws_efs_file_system.lacework-proxy-scanner-efs.id
+  #subnet_id      = data.aws_subnet.vpc_subnet[count.index].arn
+  #subnet_id = element(data.aws_subnets.vpc_subnets.ids, count.index)
+  #security_groups = [aws_security_group.efs.id]
+  #for_each        = toset(data.aws_subnets.vpc_subnets.ids)
+  #count           = length(data.aws_subnets.vpc_subnets.ids)
+
+  count           = var.use_existing_network ? length(data.aws_subnets.vpc_subnets.ids) : 0
+  file_system_id  = aws_efs_file_system.lacework-proxy-scanner-efs.id
+  security_groups = [aws_security_group.lacework-proxy-scanner-efs-security-group.id]
+  subnet_id       = element(data.aws_subnets.vpc_subnets.ids, count.index)
 
   #for_each        = local.az_subnets
   #subnet_id       = each.value[0]

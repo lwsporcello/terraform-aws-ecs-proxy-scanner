@@ -71,9 +71,10 @@ variable "force_new_deployment" {
   default     = true
 }
 
-variable "use_existing_vpc" {
-  type    = bool
-  default = true
+variable "use_existing_network" {
+  type        = bool
+  description = "Should the module use existing networking resources (vpc, internet gateway, route table, subnets, etc) or create new ones."
+  default     = true
 }
 
 variable "vpc_id" {
