@@ -245,6 +245,30 @@ resource "aws_efs_mount_target" "lacework-proxy-scanner-efs-mount" {
   subnet_id       = element(local.subnets, count.index)
 }
 
+resource "aws_efs_access_point" "lacework-efs-ap-config" {
+  file_system_id = aws_efs_file_system.lacework-proxy-scanner-efs.id
+  root_directory {
+    path = "/opt/lacework/config"
+    creation_info {
+      owner_gid   = 0
+      owner_uid   = 0
+      permissions = 755
+    }
+  }
+}
+
+resource "aws_efs_access_point" "lacework-efs-ap-cache" {
+  file_system_id = aws_efs_file_system.lacework-proxy-scanner-efs.id
+  root_directory {
+    path = "/opt/lacework"
+    creation_info {
+      owner_gid   = 0
+      owner_uid   = 0
+      permissions = 755
+    }
+  }
+}
+
 #resource "aws_efs_mount_target" "lacework-proxy-scanner-efs-mount_new_vpc" {
 #  count           = var.use_existing_network ? 0 : 2
 #  file_system_id  = aws_efs_file_system.lacework-proxy-scanner-efs.id
@@ -394,18 +418,26 @@ resource "aws_ecs_task_definition" "lacework-proxy-scanner-ecs-task-definition" 
   volume {
     name = "config"
     efs_volume_configuration {
-      file_system_id     = aws_efs_file_system.lacework-proxy-scanner-efs.id
-      root_directory     = "/opt/lacework/config"
+      file_system_id = aws_efs_file_system.lacework-proxy-scanner-efs.id
+      #root_directory     = "/opt/lacework/config"
       transit_encryption = "ENABLED"
+      authorization_config {
+        access_point_id = aws_efs_access_point.lacework-efs-ap-config.id
+        iam             = "DISABLED"
+      }
     }
   }
 
   volume {
     name = "cache"
     efs_volume_configuration {
-      file_system_id     = aws_efs_file_system.lacework-proxy-scanner-efs.id
-      root_directory     = "/opt/lacework"
+      file_system_id = aws_efs_file_system.lacework-proxy-scanner-efs.id
+      #root_directory     = "/opt/lacework"
       transit_encryption = "ENABLED"
+      authorization_config {
+        access_point_id = aws_efs_access_point.lacework-efs-ap-cache.id
+        iam             = "DISABLED"
+      }
     }
   }
 
