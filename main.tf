@@ -390,7 +390,7 @@ resource "aws_ecs_task_definition" "lacework-proxy-scanner-ecs-task-definition" 
         {
           sourceVolume  = "config"
           containerPath = "/opt/lacework/config"
-          readOnly      = true
+          readOnly      = false
         }
       ]
       environment = [
