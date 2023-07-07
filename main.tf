@@ -364,7 +364,7 @@ resource "aws_security_group" "lacework-proxy-scanner-efs-security-group" {
 
 #ecs
 resource "aws_ecs_task_definition" "lacework-proxy-scanner-ecs-task-definition" {
-  family                   = "service"
+  family                   = "${var.app_name}-task-definition"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = var.cpu
