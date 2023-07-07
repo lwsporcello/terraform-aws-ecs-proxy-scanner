@@ -250,8 +250,8 @@ resource "aws_efs_access_point" "lacework-efs-ap-config" {
   root_directory {
     path = "/opt/lacework/config"
     creation_info {
-      owner_gid   = 0
-      owner_uid   = 0
+      owner_gid   = 1000
+      owner_uid   = 1000
       permissions = 755
     }
   }
@@ -262,8 +262,8 @@ resource "aws_efs_access_point" "lacework-efs-ap-cache" {
   root_directory {
     path = "/opt/lacework"
     creation_info {
-      owner_gid   = 0
-      owner_uid   = 0
+      owner_gid   = 1000
+      owner_uid   = 1000
       permissions = 755
     }
   }
@@ -314,7 +314,7 @@ resource "aws_security_group" "lacework-proxy-scanner-ecs-security-group" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   tags = {
-    Name = var.app_name
+    Name = "${var.app_name}-ecs-sg"
   }
 }
 
@@ -335,7 +335,7 @@ resource "aws_security_group" "lacework-proxy-scanner-lb-security-group" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   tags = {
-    Name = var.app_name
+    Name = "${var.app_name}-lb-sg"
   }
 }
 
@@ -356,7 +356,7 @@ resource "aws_security_group" "lacework-proxy-scanner-efs-security-group" {
     security_groups = [aws_security_group.lacework-proxy-scanner-ecs-security-group.id]
   }
   tags = {
-    Name = var.app_name
+    Name = "${var.app_name}-efs-sg"
   }
 }
 
