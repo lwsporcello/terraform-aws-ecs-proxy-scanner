@@ -245,17 +245,17 @@ resource "aws_efs_mount_target" "lacework-proxy-scanner-efs-mount" {
   subnet_id       = element(local.subnets, count.index)
 }
 
-resource "aws_efs_access_point" "lacework-efs-ap-config" {
-  file_system_id = aws_efs_file_system.lacework-proxy-scanner-efs.id
-  root_directory {
-    path = "/opt/lacework/config"
-    creation_info {
-      owner_gid   = 1000
-      owner_uid   = 1000
-      permissions = 755
-    }
-  }
-}
+#resource "aws_efs_access_point" "lacework-efs-ap-config" {
+#  file_system_id = aws_efs_file_system.lacework-proxy-scanner-efs.id
+#  root_directory {
+#    path = "/opt/lacework/config"
+#    creation_info {
+#      owner_gid   = 1000
+#      owner_uid   = 1000
+#      permissions = 755
+#    }
+#  }
+#}
 
 resource "aws_efs_access_point" "lacework-efs-ap-cache" {
   file_system_id = aws_efs_file_system.lacework-proxy-scanner-efs.id
@@ -402,7 +402,6 @@ resource "aws_ecs_task_definition" "lacework-proxy-scanner-ecs-task-definition" 
         }
       ]
       command = ["sh", "-c", "echo $LW_CONFIG | base64 -d >/opt/lacework/config/config.yml && sh /opt/lacework/run.sh"]
-      #command = ["sh", "-c", "echo $LW_CONFIG | base64 -d >/config.yml && cp /config.yml /opt/lacework/config/config.yml && sh /opt/lacework/run.sh"]
       logConfiguration = var.enable_logging ? {
         logDriver = "awslogs"
         options = {
@@ -418,18 +417,18 @@ resource "aws_ecs_task_definition" "lacework-proxy-scanner-ecs-task-definition" 
   execution_role_arn = local.execution_role_arn
   task_role_arn      = local.task_role_arn
 
-  volume {
-    name = "config"
-    efs_volume_configuration {
-      file_system_id = aws_efs_file_system.lacework-proxy-scanner-efs.id
+  #volume {
+  #  name = "config"
+  #  efs_volume_configuration {
+  #    file_system_id = aws_efs_file_system.lacework-proxy-scanner-efs.id
       #root_directory     = "/opt/lacework/config"
-      transit_encryption = "ENABLED"
-      authorization_config {
-        access_point_id = aws_efs_access_point.lacework-efs-ap-config.id
-        iam             = "DISABLED"
-      }
-    }
-  }
+  #    transit_encryption = "ENABLED"
+  #    authorization_config {
+  #      access_point_id = aws_efs_access_point.lacework-efs-ap-config.id
+  #      iam             = "DISABLED"
+  #    }
+  #  }
+  #}
 
   volume {
     name = "cache"
