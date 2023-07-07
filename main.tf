@@ -399,6 +399,10 @@ resource "aws_ecs_task_definition" "lacework-proxy-scanner-ecs-task-definition" 
         {
           name  = "LW_CONFIG"
           value = base64encode(local.config)
+        },
+        {
+          name  = "LOG_LEVEL"
+          value = var.log_level
         }
       ]
       command = ["sh", "-c", "echo $LW_CONFIG | base64 -d >/opt/lacework/config/config.yml && sh /opt/lacework/run.sh"]
@@ -421,7 +425,7 @@ resource "aws_ecs_task_definition" "lacework-proxy-scanner-ecs-task-definition" 
   #  name = "config"
   #  efs_volume_configuration {
   #    file_system_id = aws_efs_file_system.lacework-proxy-scanner-efs.id
-      #root_directory     = "/opt/lacework/config"
+  #root_directory     = "/opt/lacework/config"
   #    transit_encryption = "ENABLED"
   #    authorization_config {
   #      access_point_id = aws_efs_access_point.lacework-efs-ap-config.id

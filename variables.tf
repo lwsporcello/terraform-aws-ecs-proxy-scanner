@@ -181,6 +181,12 @@ variable "certificate_arn" {
 }
 
 #Lacework proxy scanner settings
+variable "log_level" {
+  type        = string
+  description = "Proxy scanner log level. Default is 'error'. Options are 'error', 'warn', or 'debug'"
+  default     = "error"
+}
+
 variable "proxy_scanner_token" {
   type        = string
   description = "The token for the Lacework proxy scanner."
