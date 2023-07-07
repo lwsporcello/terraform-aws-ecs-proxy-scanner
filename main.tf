@@ -260,7 +260,7 @@ resource "aws_efs_access_point" "lacework-efs-ap-config" {
 resource "aws_efs_access_point" "lacework-efs-ap-cache" {
   file_system_id = aws_efs_file_system.lacework-proxy-scanner-efs.id
   root_directory {
-    path = "/opt/lacework"
+    path = "/opt/lacework/cache"
     creation_info {
       owner_gid   = 1000
       owner_uid   = 1000
@@ -386,7 +386,7 @@ resource "aws_ecs_task_definition" "lacework-proxy-scanner-ecs-task-definition" 
       mountPoints = [
         {
           sourceVolume  = "cache"
-          containerPath = "/opt/lacework"
+          containerPath = "/opt/lacework/cache"
           readOnly      = false
         },
         {
@@ -401,7 +401,8 @@ resource "aws_ecs_task_definition" "lacework-proxy-scanner-ecs-task-definition" 
           value = base64encode(local.config)
         }
       ]
-      command = ["sh", "-c", "echo $LW_CONFIG | base64 -d >/opt/lacework/config/config.yml && /opt/lacework/run.sh"]
+      command = ["sh", "-c", "echo $LW_CONFIG | base64 -d >/opt/lacework/config/config.yml && sh /opt/lacework/run.sh"]
+      #command = ["sh", "-c", "echo $LW_CONFIG | base64 -d >/config.yml && cp /config.yml /opt/lacework/config/config.yml && sh /opt/lacework/run.sh"]
       logConfiguration = var.enable_logging ? {
         logDriver = "awslogs"
         options = {
