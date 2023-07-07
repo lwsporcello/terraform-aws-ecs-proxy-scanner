@@ -344,16 +344,18 @@ resource "aws_security_group" "lacework-proxy-scanner-efs-security-group" {
   description = "${var.app_name} EFS Security Group - allow ECS to EFS"
   vpc_id      = local.vpc_id
   ingress {
-    security_groups = [aws_security_group.lacework-proxy-scanner-ecs-security-group.id]
-    protocol        = "tcp"
-    from_port       = 2049
-    to_port         = 2049
+    #security_groups = [aws_security_group.lacework-proxy-scanner-ecs-security-group.id]
+    cidr_blocks = ["0.0.0.0/0"]
+    protocol    = "tcp"
+    from_port   = 2049
+    to_port     = 2049
   }
   egress {
-    protocol        = "-1"
-    from_port       = 0
-    to_port         = 0
-    security_groups = [aws_security_group.lacework-proxy-scanner-ecs-security-group.id]
+    protocol    = "-1"
+    from_port   = 0
+    to_port     = 0
+    cidr_blocks = ["0.0.0.0/0"]
+    #security_groups = [aws_security_group.lacework-proxy-scanner-ecs-security-group.id]
   }
   tags = {
     Name = "${var.app_name}-efs-sg"
