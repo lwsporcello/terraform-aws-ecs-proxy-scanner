@@ -401,7 +401,7 @@ resource "aws_ecs_task_definition" "lacework-proxy-scanner-ecs-task-definition" 
           value = base64encode(local.config)
         }
       ]
-      command = ["sh", "-c", "echo $LW_CONFIG | base64 --decode >/opt/lacework/config/config.yml && /opt/lacework/run.sh"]
+      command = ["sh", "-c", "echo $LW_CONFIG | base64 -d >/opt/lacework/config/config.yml && /opt/lacework/run.sh"]
       logConfiguration = var.enable_logging ? {
         logDriver = "awslogs"
         options = {
