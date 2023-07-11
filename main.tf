@@ -406,6 +406,13 @@ resource "aws_ecs_task_definition" "lacework-proxy-scanner-ecs-task-definition" 
         }
       ]
       command = ["sh", "-c", "echo $LW_CONFIG | base64 -d >/opt/lacework/config/config.yml && sh /opt/lacework/run.sh"]
+      heatlhCheck = {
+        command     = ["wget --no-verbose --tries=1 --spider http://localhost:8080/v1/notification?registry_name="]
+        interval    = 5
+        timeout     = 5
+        retries     = 3
+        startPeriod = 300
+      }
       logConfiguration = var.enable_logging ? {
         logDriver = "awslogs"
         options = {
@@ -523,7 +530,7 @@ resource "aws_lb_target_group" "lacework-proxy-scanner-lb-tg" {
   target_type = "ip"
 
   health_check {
-    matcher = "404"
+    matcher = "200"
   }
 
   lifecycle {
